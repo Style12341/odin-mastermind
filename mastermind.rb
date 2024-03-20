@@ -59,5 +59,10 @@ module Squares
   def light_blue_sq
     puts '■'.light_blue
   end
+
+  def blank_sq
+    puts '□'
+  end
 end
-puts '■'.red
+
+
