@@ -123,6 +123,10 @@ class Board
     end
     color_matches.times { |i| @info[row][i + offset] = white_sq }
   end
+
+  def get_info(row)
+    @info[row]
+  end
 end
 
 class ComputerPlayer
@@ -131,6 +135,20 @@ class ComputerPlayer
     @colors = %w[red green yellow blue pink lightblue]
     @possibilities = possible_guesses
     @last_guess = nil
+    @last_info = nil
+  end
+
+  def erase_possible_guesses(info)
+    if info.all? { |peg| peg == '□' }
+      @possibilities.select! { |guess| guess.none? { |peg| @last_guess.include?(peg) } }
+      p 'in'
+    elsif info.none? { |peg| peg == '□' }
+      @possibilities.select! { |guess| guess.all? { |peg| guess.count(peg) >= @last_guess.count(peg) } }
+      p 'in2'
+    else
+      @colors.select! { |color| @last_guess.include?(color) }
+      @possibilities.select! { |guess| guess.all? { |peg| @colors.include?(peg) } }
+    end
   end
 
   def possible_guesses
@@ -180,7 +198,7 @@ class Mastermind
       exact_matches += peg == @code[idx] ? 1 : 0
       color_matches -= peg == @code[idx] ? 1 : 0
     end
-    guess.uniq.each { |peg| color_matches += @code.count(peg) }
+    guess.uniq.each { |peg| color_matches += [guess.count(peg), @code.count(peg)].min }
     @board.set_info(@turn, exact_matches, color_matches)
     return @state = 'win' if exact_matches == CODE_LENGTH
 
@@ -192,7 +210,7 @@ class Mastermind
   end
 
   def announce_winner
-    if @state == 'win' && @maker.nil?
+    if @state == 'win' && @maker.nil? || @state == 'lose' && @maker
       puts 'You win!'
     else
       puts 'You lose!'
@@ -281,9 +299,10 @@ class Mastermind
     until @turn == MAX_TURNS || @state != 'playing'
       place_computer_guess(@computer.computer_guess)
       confirm_guess
+      @computer.erase_possible_guesses(@board.get_info(@turn))
       @board.print_board
       input = ''
-      until input == 'next'
+      until input == 'next' || @state != 'playing'
         puts 'Type next for next turn'
         input = gets.chomp.downcase
       end
