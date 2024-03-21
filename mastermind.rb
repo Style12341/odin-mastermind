@@ -125,6 +125,35 @@ class Board
   end
 end
 
+class ComputerPlayer
+  include Squares
+  def initialize
+    @colors = %w[red green yellow blue pink lightblue]
+    @possibilities = possible_guesses
+    @last_guess = nil
+  end
+
+  def possible_guesses
+    guesses = []
+    @colors.each do |color1|
+      @colors.each do |color2|
+        @colors.each do |color3|
+          @colors.each do |color4|
+            guesses << [color1, color2, color3, color4]
+          end
+        end
+      end
+    end
+    guesses
+  end
+
+  def computer_guess
+    @possibilities.delete(@last_guess) unless @last_guess.nil?
+    @last_guess = @possibilities.sample
+    @last_guess
+  end
+end
+
 # Mastermind class
 class Mastermind
   include Squares
@@ -136,6 +165,55 @@ class Mastermind
     @colors = %w[red green yellow blue pink lightblue]
     @state = 'playing'
     @code = generate_code
+    @maker = nil
+    @computer = ComputerPlayer.new
+  end
+
+  def confirm_guess
+    compare_guess(current_guess)
+  end
+
+  def compare_guess(guess)
+    exact_matches = 0
+    color_matches = 0
+    guess.each_with_index do |peg, idx|
+      exact_matches += peg == @code[idx] ? 1 : 0
+      color_matches -= peg == @code[idx] ? 1 : 0
+    end
+    guess.uniq.each { |peg| color_matches += @code.count(peg) }
+    @board.set_info(@turn, exact_matches, color_matches)
+    return @state = 'win' if exact_matches == CODE_LENGTH
+
+    @state = 'lose' if @turn == MAX_TURNS - 1
+  end
+
+  def current_guess
+    @board.get_row(@turn)
+  end
+
+  def announce_winner
+    if @state == 'win' && @maker.nil?
+      puts 'You win!'
+    else
+      puts 'You lose!'
+    end
+  end
+
+  def generate_code
+    code = []
+    CODE_LENGTH.times { code << get_color(@colors.sample) }
+    code
+  end
+
+  def play_as_codebreaker
+    @board.print_board
+    until @turn == MAX_TURNS || @state != 'playing'
+      if parse_input
+        @board.print_board
+        @turn += 1
+      end
+    end
+    announce_winner
   end
 
   def print_instructions
@@ -170,53 +248,50 @@ class Mastermind
     false
   end
 
-  def confirm_guess
-    compare_guess(current_guess)
-  end
-
-  def compare_guess(guess)
-    exact_matches = 0
-    color_matches = 0
-    guess.each_with_index do |peg, idx|
-      exact_matches += peg == @code[idx] ? 1 : 0
-      color_matches -= peg == @code[idx] ? 1 : 0
+  def play
+    puts 'Welcome to Mastermind! Would you like to play as the codebreaker or the codemaker?'
+    puts "Type 'breaker' or 'maker'"
+    begin
+      input = gets.chomp.downcase
+      raise 'Invalid input' unless %w[breaker maker].include?(input)
+    rescue StandardError => e
+      puts e.message
+      retry
     end
-    guess.uniq.each { |peg| color_matches += @code.count(peg) }
-    @board.set_info(@turn, exact_matches, color_matches)
-    return @state = 'win' if exact_matches == CODE_LENGTH
-
-    @state = 'lose' if @turn == MAX_TURNS - 1
+    if input == 'breaker'
+      play_as_codebreaker
+    elsif input == 'maker'
+      play_as_codemaker
+    end
   end
 
-  def generate_code
-    code = []
-    CODE_LENGTH.times { code << get_color(@colors.sample) }
-    code
+  def user_code
+    puts 'Enter your code'
+    @code = gets.chomp.split(' ')
+    @code = @code.map { |color| get_color(color) }
   end
 
-  def current_guess
-    @board.get_row(@turn)
+  def place_computer_guess(guess)
+    4.times { |i| @board.place_peg(guess[i], @turn, i) }
   end
 
-  def play_as_codebreaker
-    @board.print_board
+  def play_as_codemaker
+    @maker = true
+    user_code
     until @turn == MAX_TURNS || @state != 'playing'
-      if parse_input
-        @board.print_board
-        @turn += 1
+      place_computer_guess(@computer.computer_guess)
+      confirm_guess
+      @board.print_board
+      input = ''
+      until input == 'next'
+        puts 'Type next for next turn'
+        input = gets.chomp.downcase
       end
+      @turn += 1
     end
     announce_winner
-  end
-
-  def announce_winner
-    if @state == 'win'
-      puts 'You win!'
-    else
-      puts 'You lose!'
-    end
   end
 end
 
 game = Mastermind.new
-game.play_as_codebreaker
+game.play
