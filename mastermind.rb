@@ -145,10 +145,7 @@ class ComputerPlayer
     elsif info.none? { |peg| peg == '□' }
       @possibilities.select! { |guess| guess.all? { |peg| guess.count(peg) >= @last_guess.count(peg) } }
       p 'in2'
-    else
-      @colors.select! { |color| @last_guess.include?(color) }
-      @possibilities.select! { |guess| guess.all? { |peg| @colors.include?(peg) } }
-    end
+
   end
 
   def possible_guesses
